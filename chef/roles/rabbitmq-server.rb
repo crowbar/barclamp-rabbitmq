@@ -1,3 +1,4 @@
+# -*- encoding : utf-8 -*-
 name "rabbitmq-server"
 description "RabbiMQ server role - Setups the rabbitmq app"
 
