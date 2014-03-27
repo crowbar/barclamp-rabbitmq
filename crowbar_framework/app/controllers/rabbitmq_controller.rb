@@ -17,7 +17,10 @@
 #
 
 class RabbitmqController < BarclampController
-  def initialize
+
+  protected
+
+  def initialize_service
     @service_object = RabbitmqService.new logger
   end
 end
