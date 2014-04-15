@@ -100,7 +100,7 @@ end
 if node[:rabbitmq][:ha][:storage][:mode] == "drbd"
   pacemaker_colocation "col-#{fs_primitive}" do
     score "inf"
-    resources [fs_primitive, "#{ms_name}:Master"]
+    resources "#{fs_primitive} #{ms_name}:Master"
     action :create
   end
 
@@ -241,13 +241,13 @@ if node[:rabbitmq][:ha][:storage][:mode] == "drbd"
 
   pacemaker_colocation "col-#{service_name}" do
     score "inf"
-    resources [vip_primitive, fs_primitive, service_name]
+    resources "( #{vip_primitive} #{fs_primitive} ) #{service_name}"
     action :create
   end
 
   pacemaker_order "o-#{service_name}" do
     score "Mandatory"
-    ordering "#{vip_primitive} #{fs_primitive} #{service_name}"
+    ordering "( #{vip_primitive} #{fs_primitive} ) #{service_name}"
     action :create
     # This is our last constraint, so we can finally start service_name
     notifies :run, "execute[Cleanup #{service_name} after constraints]", :immediately
