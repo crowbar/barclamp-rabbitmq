@@ -29,7 +29,7 @@
                       "type": "map",
                       "required": true,
                       "mapping" : {
-                        "size": { "type": "int", "required": true }
+                        "size": { "type": "float", "required": true }
                       }
                     },
                     "shared": {
