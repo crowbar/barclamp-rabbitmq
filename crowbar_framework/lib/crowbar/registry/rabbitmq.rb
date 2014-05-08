@@ -1,4 +1,4 @@
-#!/bin/bash
+# -*- encoding : utf-8 -*-
 #
 # Copyright 2011-2013, Dell
 # Copyright 2013-2014, SUSE LINUX Products GmbH
@@ -16,10 +16,10 @@
 # limitations under the License.
 #
 
-#
-#
-# TODO: Needs to be replaced by https://github.com/sstephenson/bats
-#
-#
+module Crowbar
+  module Registry
+    class Rabbitmq < Base
 
-exit 0
+    end
+  end
+end

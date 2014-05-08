@@ -7,15 +7,15 @@
     = integer_field :port
     = string_field :user
 
-    %fieldset#ha-setup{ "data-show-for-clusters-only" => "true", "data-elements-path" => "database-server" }
+    %fieldset#ha-setup{ data: { show_for_clusters_only: "true", elements_path: "database-server" } }
       %legend
-        = t('.ha_header')
+        = t(".ha_header")
 
-      = select_field %w(ha storage mode), :collection => :ha_storage_mode_for_rabbitmq, "data-showit" => ["drbd", "shared"].join(";"), "data-showit-target" => "#drbd_storage_container;#shared_storage_container", "data-showit-direct" => "true"
+      = select_field %w(ha storage mode), collection: :ha_storage_mode_for_rabbitmq, data: { showit: ["drbd", "shared"].join(";"), showit_target: "#drbd_storage_container;#shared_storage_container", showit_direct: "true" }
 
       #drbd_storage_container
         .alert.alert-info
-          = t('.ha.storage.drbd_info')
+          = t(".ha.storage.drbd_info")
         = integer_field %w(ha storage drbd size)
 
       #shared_storage_container
