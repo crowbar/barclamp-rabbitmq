@@ -23,4 +23,8 @@ class RabbitmqController < BarclampController
   def initialize_service
     @service_object = RabbitmqService.new logger
   end
+
+  def permitted_params
+    params.require(:rabbitmq)
+  end
 end
