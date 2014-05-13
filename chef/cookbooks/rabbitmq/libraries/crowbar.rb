@@ -1,3 +1,4 @@
+# -*- encoding : utf-8 -*-
 module CrowbarRabbitmqHelper
   def self.get_ha_vhostname(node)
     if node[:rabbitmq][:ha][:enabled]
