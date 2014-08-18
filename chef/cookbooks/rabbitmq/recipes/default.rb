@@ -53,16 +53,44 @@ else
   rabbitmq_plugins = "#{RbConfig::CONFIG["libdir"]}/rabbitmq/bin/rabbitmq-plugins"
 end
 
-service "rabbitmq-server" do
-  supports :restart => true, :start => true, :stop => true
-  action [ :enable, :start ]
-  provider Chef::Provider::CrowbarPacemakerService if node[:rabbitmq][:ha][:enabled]
+ha_enabled = node[:rabbitmq][:ha][:enabled]
+
+rabbitmq_status = true
+
+if ha_enabled
+  log "HA support for rabbitmq is enabled"
+  # All the rabbitmqctl commands are local, and can only be run if rabbitmq is
+  # local
+  service_name = "rabbitmq"
+  check_cmd = Mixlib::ShellOut.new("crm resource show #{service_name} | grep \" #{node.hostname} *$\"")
+  rabbitmq_status = false if check_cmd.run_command.stdout.empty?
+else
+  log "HA support for rabbitmq is disabled"
 end
 
-bash "enabling rabbit management" do
-  environment "HOME" => "/root/"
-  code "#{rabbitmq_plugins} enable rabbitmq_management > /dev/null"
-  not_if "#{rabbitmq_plugins} list -E | grep rabbitmq_management -q", :environment => {"HOME" => "/root/"}
-  notifies :restart, "service[rabbitmq-server]"
-end
+if rabbitmq_status
+  service "rabbitmq-server" do
+    supports :restart => true, :start => true, :stop => true
+    action [ :enable, :start ]
+    provider Chef::Provider::CrowbarPacemakerService if ha_enabled
+  end
 
+  bash "enabling rabbit management" do
+    environment "HOME" => "/root/"
+    code "#{rabbitmq_plugins} enable rabbitmq_management > /dev/null"
+    not_if "#{rabbitmq_plugins} list -E | grep rabbitmq_management -q", :environment => {"HOME" => "/root/"}
+    notifies :restart, "service[rabbitmq-server]"
+  end
+else
+  service "rabbitmq-server" do
+    supports :restart => true, :start => true, :stop => true
+    action :nothing
+    provider Chef::Provider::CrowbarPacemakerService
+  end
+
+  bash "enabling rabbit management" do
+    environment "HOME" => "/root/"
+    code "#{rabbitmq_plugins} enable rabbitmq_management > /dev/null"
+    not_if "#{rabbitmq_plugins} list -E | grep rabbitmq_management -q", :environment => {"HOME" => "/root/"}
+  end
+end
