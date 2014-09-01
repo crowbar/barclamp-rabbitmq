@@ -31,13 +31,16 @@ end
 
 include_recipe "rabbitmq::default"
 
+rabbitmq_status = true
+
 if ha_enabled
   log "HA support for rabbitmq is enabled"
   include_recipe "rabbitmq::ha"
   # All the rabbitmqctl commands are local, and can only be run if rabbitmq is
   # local
   service_name = "rabbitmq"
-  only_if_command = "crm resource show #{service_name} | grep -q \" #{node.hostname} *$\""
+  check_cmd = Mixlib::ShellOut.new("crm resource show #{service_name} | grep \" #{node.hostname} *$\"")
+  rabbitmq_status = false if check_cmd.run_command.stdout.empty?
 else
   log "HA support for rabbitmq is disabled"
 end
@@ -46,13 +49,13 @@ end
 rabbitmq_user "remove guest user" do
   user "guest"
   action :delete
-  only_if only_if_command if ha_enabled
+  only_if { rabbitmq_status }
 end
 
 # add a vhost to the queue
 rabbitmq_vhost node[:rabbitmq][:vhost] do
   action :add
-  only_if only_if_command if ha_enabled
+  only_if { rabbitmq_status }
 end
 
 # create user for the queue
@@ -62,7 +65,7 @@ rabbitmq_user "adding user #{node[:rabbitmq][:user]}" do
   address node[:rabbitmq][:mochiweb_address]
   port node[:rabbitmq][:mochiweb_port]
   action :add
-  only_if only_if_command if ha_enabled
+  only_if { rabbitmq_status }
 end
 
 # grant the user created above the ability to do anything with the vhost
@@ -72,19 +75,19 @@ rabbitmq_user "setting permissions for #{node[:rabbitmq][:user]}" do
   vhost node[:rabbitmq][:vhost]
   permissions "\".*\" \".*\" \".*\""
   action :set_permissions
-  only_if only_if_command if ha_enabled
+  only_if { rabbitmq_status }
 end
 
 execute "rabbitmqctl set_user_tags #{node[:rabbitmq][:user]} management" do
   not_if "rabbitmqctl list_users | grep #{node[:rabbitmq][:user]} | grep -q management"
   action :run
-  only_if only_if_command if ha_enabled
+  only_if { rabbitmq_status }
 end
 
 if node[:rabbitmq][:trove][:enabled]
   rabbitmq_vhost node[:rabbitmq][:trove][:vhost] do
     action :add
-    only_if only_if_command if ha_enabled
+    only_if { rabbitmq_status }
   end
 
   rabbitmq_user "adding user #{node[:rabbitmq][:trove][:user]}" do
@@ -93,7 +96,7 @@ if node[:rabbitmq][:trove][:enabled]
     address node[:rabbitmq][:mochiweb_address]
     port node[:rabbitmq][:mochiweb_port]
     action :add
-    only_if only_if_command if ha_enabled
+    only_if { rabbitmq_status }
   end
 
   # grant the trove user the ability to do anything with the trove vhost
@@ -103,7 +106,7 @@ if node[:rabbitmq][:trove][:enabled]
     vhost node[:rabbitmq][:trove][:vhost]
     permissions "\".*\" \".*\" \".*\""
     action :set_permissions
-    only_if only_if_command if ha_enabled
+    only_if { rabbitmq_status }
   end
 else
   rabbitmq_user "deleting user #{node[:rabbitmq][:trove][:user]}" do
@@ -111,12 +114,12 @@ else
     address node[:rabbitmq][:mochiweb_address]
     port node[:rabbitmq][:mochiweb_port]
     action :delete
-    only_if only_if_command if ha_enabled
+    only_if { rabbitmq_status }
   end
 
   rabbitmq_vhost node[:rabbitmq][:trove][:vhost] do
     action :delete
-    only_if only_if_command if ha_enabled
+    only_if { rabbitmq_status }
   end
 end
 
