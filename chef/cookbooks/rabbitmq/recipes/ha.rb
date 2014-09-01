@@ -136,15 +136,7 @@ if node[:rabbitmq][:ha][:storage][:mode] == "drbd"
     score "Mandatory"
     ordering "#{ms_name}:promote #{fs_primitive}:start"
     # This is our last constraint, so we can finally start fs_primitive
-    notifies :run, "execute[Cleanup #{fs_primitive} after constraints]", :immediately
     notifies :start, "pacemaker_primitive[#{fs_primitive}]", :immediately
-  end
-
-  # This is needed because we don't create all the pacemaker resources in the
-  # same transaction, so we will need to cleanup before starting
-  execute "Cleanup #{fs_primitive} after constraints" do
-    command "sleep 2; crm resource cleanup #{fs_primitive}"
-    action :nothing
   end
 end
 
@@ -278,15 +270,7 @@ if node[:rabbitmq][:ha][:storage][:mode] == "drbd"
     ordering "#{fs_primitive} #{vip_primitive} #{service_name}"
     action :create
     # This is our last constraint, so we can finally start service_name
-    notifies :run, "execute[Cleanup #{service_name} after constraints]", :immediately
     notifies :start, "pacemaker_primitive[#{service_name}]", :immediately
-  end
-
-  # This is needed because we don't create all the pacemaker resources in the
-  # same transaction, so we will need to cleanup before starting
-  execute "Cleanup #{service_name} after constraints" do
-    command "sleep 2; crm resource cleanup #{service_name}"
-    action :nothing
   end
 
 else
