@@ -81,7 +81,10 @@ execute "rabbitmqctl set_user_tags #{node[:rabbitmq][:user]} management" do
   only_if only_if_command if ha_enabled
 end
 
-if node[:rabbitmq][:trove][:enabled]
+trove_env_filter = " AND trove_config_environment:trove-config-default"
+trove_servers = search(:node, "roles:trove-server#{trove_env_filter}") || []
+
+if trove_servers.length > 0
   rabbitmq_vhost node[:rabbitmq][:trove][:vhost] do
     action :add
     only_if only_if_command if ha_enabled
