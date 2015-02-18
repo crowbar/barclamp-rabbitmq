@@ -358,7 +358,7 @@ if node[:rabbitmq][:ha][:storage][:mode] == "drbd"
 
   pacemaker_order "o-#{service_name}" do
     score "Mandatory"
-    ordering "#{primitives.join(" ")}"
+    ordering primitives.join(" ")
     action :create
     # This is our last constraint, so we can finally start service_name
     notifies :run, "execute[Cleanup #{service_name} after constraints]", :immediately
