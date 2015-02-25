@@ -17,7 +17,11 @@ vhostname = CrowbarRabbitmqHelper.get_ha_vhostname(node)
 drbd_resource = "rabbitmq"
 
 admin_vip_primitive = "vip-admin-#{vhostname}"
+admin_portblock_primitive = "portblock-admin-#{vhostname}"
+admin_portunblock_primitive = "portunblock-admin-#{vhostname}"
 public_vip_primitive = "vip-public-#{vhostname}"
+public_portblock_primitive = "portblock-public-#{vhostname}"
+public_portunblock_primitive = "portunblock-public-#{vhostname}"
 service_name = "rabbitmq"
 fs_primitive = "fs-#{service_name}"
 drbd_primitive = "drbd-#{drbd_resource}"
@@ -261,6 +265,30 @@ pacemaker_primitive admin_vip_primitive do
   action :create
 end
 
+pacemaker_primitive admin_portblock_primitive do
+  agent "ocf:heartbeat:portblock"
+  params ({
+    "protocol" => "tcp",
+    "ip" => admin_ip_addr,
+    "portno" => node[:rabbitmq][:port],
+    "action" => "block"
+  })
+  op rabbitmq_op
+  action :create
+end
+
+pacemaker_primitive admin_portunblock_primitive do
+  agent "ocf:heartbeat:portblock"
+  params ({
+    "protocol" => "tcp",
+    "ip" => admin_ip_addr,
+    "portno" => node[:rabbitmq][:port],
+    "action" => "unblock"
+  })
+  op rabbitmq_op
+  action :create
+end
+
 if node[:rabbitmq][:listen_public]
   pacemaker_primitive public_vip_primitive do
     agent "ocf:heartbeat:IPaddr2"
@@ -270,6 +298,31 @@ if node[:rabbitmq][:listen_public]
     op rabbitmq_op
     action :create
   end
+
+  pacemaker_primitive public_portblock_primitive do
+    agent "ocf:heartbeat:portblock"
+    params ({
+      "protocol" => "tcp",
+      "ip" => public_ip_addr,
+      "portno" => node[:rabbitmq][:port],
+      "action" => "block"
+    })
+    op rabbitmq_op
+    action :create
+  end
+
+  pacemaker_primitive public_portunblock_primitive do
+    agent "ocf:heartbeat:portblock"
+    params ({
+      "protocol" => "tcp",
+      "ip" => public_ip_addr,
+      "portno" => node[:rabbitmq][:port],
+      "action" => "unblock"
+    })
+    op rabbitmq_op
+    action :create
+  end
+
   # Note: The "else" part of this, to remove the VIP for rabbitmq again, is
   #       located further down below, because we first need to update the
   #       constraints before we can stop and delete the primitive.
@@ -284,11 +337,16 @@ pacemaker_primitive service_name do
   action :create
 end
 
-primitives = [ fs_primitive, admin_vip_primitive ]
+primitives = [ fs_primitive, admin_portblock_primitive, admin_vip_primitive ]
 if node[:rabbitmq][:listen_public]
+  primitives << public_portblock_primitive
   primitives << public_vip_primitive
 end
 primitives << service_name
+primitives << admin_portunblock_primitive
+if node[:rabbitmq][:listen_public]
+  primitives << public_portunblock_primitive
+end
 
 if node[:rabbitmq][:ha][:storage][:mode] == "drbd"
 
@@ -300,7 +358,7 @@ if node[:rabbitmq][:ha][:storage][:mode] == "drbd"
 
   pacemaker_order "o-#{service_name}" do
     score "Mandatory"
-    ordering "#{primitives.join(" ")}"
+    ordering primitives.join(" ")
     action :create
     # This is our last constraint, so we can finally start service_name
     notifies :run, "execute[Cleanup #{service_name} after constraints]", :immediately
@@ -331,6 +389,18 @@ unless node[:rabbitmq][:listen_public]
     agent "ocf:heartbeat:IPaddr2"
     action [:stop, :delete]
     only_if "crm configure show #{public_vip_primitive}"
+  end
+
+  pacemaker_primitive public_portblock_primitive do
+    agent "ocf:heartbeat:portblock"
+    action [:stop, :delete]
+    only_if "crm configure show #{public_portblock_primitive}"
+  end
+
+  pacemaker_primitive public_portunblock_primitive do
+    agent "ocf:heartbeat:portblock"
+    action [:stop, :delete]
+    only_if "crm configure show #{public_portunblock_primitive}"
   end
 end
 
