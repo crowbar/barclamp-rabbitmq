@@ -89,12 +89,12 @@ if node[:rabbitmq][:ha][:storage][:mode] == "drbd"
     agent "ocf:linbit:drbd"
     params drbd_params
     op rabbitmq_op
-    # See big comment above as to why we do that. We know that the founder will
-    # go first here, so we only do this on the founder.
+    # See big comment above as to why we do that.
     meta ({
       "is-managed" => "false"
-    }) if (CrowbarPacemakerHelper.is_cluster_founder?(node) && ! ::Kernel.system("crm configure show #{drbd_primitive} &> /dev/null"))
+    }) if (! ::Kernel.system("crm configure show #{drbd_primitive} &> /dev/null"))
     action :create
+    only_if { CrowbarPacemakerHelper.is_cluster_founder?(node) }
   end
 
   pacemaker_ms ms_name do
@@ -107,6 +107,7 @@ if node[:rabbitmq][:ha][:storage][:mode] == "drbd"
       "notify" => "true"
     })
     action :create
+    only_if { CrowbarPacemakerHelper.is_cluster_founder?(node) }
   end
 
   # See big comment above as to why we do that. We know that the founder will
@@ -128,6 +129,7 @@ pacemaker_primitive fs_primitive do
   params fs_params
   op rabbitmq_op
   action :create
+  only_if { CrowbarPacemakerHelper.is_cluster_founder?(node) }
 end
 
 if node[:rabbitmq][:ha][:storage][:mode] == "drbd"
@@ -135,6 +137,7 @@ if node[:rabbitmq][:ha][:storage][:mode] == "drbd"
     score "inf"
     resources "#{fs_primitive} #{ms_name}:Master"
     action :create
+    only_if { CrowbarPacemakerHelper.is_cluster_founder?(node) }
   end
 
   pacemaker_order "o-#{fs_primitive}" do
@@ -143,6 +146,7 @@ if node[:rabbitmq][:ha][:storage][:mode] == "drbd"
     # This is our last constraint, so we can finally start fs_primitive
     notifies :run, "execute[Cleanup #{fs_primitive} after constraints]", :immediately
     notifies :start, "pacemaker_primitive[#{fs_primitive}]", :immediately
+    only_if { CrowbarPacemakerHelper.is_cluster_founder?(node) }
   end
 
   # This is needed because we don't create all the pacemaker resources in the
@@ -259,6 +263,7 @@ pacemaker_primitive admin_vip_primitive do
   })
   op rabbitmq_op
   action :create
+  only_if { CrowbarPacemakerHelper.is_cluster_founder?(node) }
 end
 
 if node[:rabbitmq][:listen_public]
@@ -269,6 +274,7 @@ if node[:rabbitmq][:listen_public]
     })
     op rabbitmq_op
     action :create
+    only_if { CrowbarPacemakerHelper.is_cluster_founder?(node) }
   end
   # Note: The "else" part of this, to remove the VIP for rabbitmq again, is
   #       located further down below, because we first need to update the
@@ -282,6 +288,7 @@ pacemaker_primitive service_name do
   })
   op rabbitmq_op
   action :create
+  only_if { CrowbarPacemakerHelper.is_cluster_founder?(node) }
 end
 
 dependencies = [ fs_primitive, admin_vip_primitive ]
@@ -296,6 +303,7 @@ if node[:rabbitmq][:ha][:storage][:mode] == "drbd"
     score "inf"
     resources primitives
     action :create
+    only_if { CrowbarPacemakerHelper.is_cluster_founder?(node) }
   end
 
   pacemaker_order "o-#{service_name}" do
@@ -309,6 +317,7 @@ if node[:rabbitmq][:ha][:storage][:mode] == "drbd"
       notifies :start, "pacemaker_primitive[#{public_vip_primitive}]", :immediately
     end
     notifies :start, "pacemaker_primitive[#{service_name}]", :immediately
+    only_if { CrowbarPacemakerHelper.is_cluster_founder?(node) }
   end
 
   # This is needed because we don't create all the pacemaker resources in the
@@ -327,6 +336,7 @@ else
     # that they are available for the service to bind to.
     members primitives
     action [ :create, :start ]
+    only_if { CrowbarPacemakerHelper.is_cluster_founder?(node) }
   end
 
 end
@@ -336,6 +346,7 @@ unless node[:rabbitmq][:listen_public]
   pacemaker_primitive public_vip_primitive do
     agent "ocf:heartbeat:IPaddr2"
     action [:stop, :delete]
+    only_if { CrowbarPacemakerHelper.is_cluster_founder?(node) }
     only_if "crm configure show #{public_vip_primitive}"
   end
 end
